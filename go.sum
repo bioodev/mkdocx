@@ -1,0 +1,4 @@
+github.com/mmonterroca/docxgo/v2 v2.14.0 h1:dMsQ1VjwWKUawaFBlRHzIJkPDD6FLDjdJLGqV1GK+lo=
+github.com/mmonterroca/docxgo/v2 v2.14.0/go.mod h1:Yc3h7M+sssxGMz51qQ8EHbfDb2NyleLbS+lZLH9Y0us=
+github.com/yuin/goldmark v1.7.13 h1:GPddIs617DnBLFFVJFgpo1aBfe/4xcvMc3SB5t/D0pA=
+github.com/yuin/goldmark v1.7.13/go.mod h1:ip/1k0VRfGynBgxOz0yCqHrbZXhcjxyuS66Brc7iBKg=
