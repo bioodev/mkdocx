@@ -63,7 +63,24 @@ Arrastrados de la revisión anterior: el texto alternativo de las imágenes no r
 - `{{ clave }}` con espacios (normalizar antes del merge).
 - `--reference-doc estilos.docx` para tomar estilos y página de una plantilla (como pandoc).
 - Alineación de columnas en tablas (`:--:`).
-- ~~Release etiquetado con binarios en GitHub~~ → hecho: `make publish VERSION=vX.Y.Z` (`scripts/release.sh`, sin gh) + `skills/mkdocx/scripts/install.sh`. Falta publicar el primer release (`v0.1.0`).
+- ~~Release etiquetado con binarios en GitHub~~ → hecho: `make publish VERSION=vX.Y.Z` (`scripts/release.sh`, sin gh) + `skills/mkdocx/scripts/install.sh`.
+
+## Estado del release `v0.1.0` (2026-10-11)
+
+Hecho:
+
+- `main` subido a `origin` (`207a3e2..eae598c`, 6 commits).
+- `MANUAL=1 make publish VERSION=v0.1.0`: checks + tests + 6 binarios y `SHA256SUMS` en `dist/`.
+- Tag anotado `v0.1.0` (`82573b9` → `eae598c`) creado y subido por SSH.
+
+Pendiente (solo se puede hacer en la web; SSH sirve para el tag, no para el release):
+
+1. Abrir <https://github.com/bioodev/mkdocx/releases/new?tag=v0.1.0>.
+2. Arrastrar los 7 archivos de `dist/`: `mkdocx-{linux,darwin}-{amd64,arm64}`, `mkdocx-windows-{amd64,arm64}.exe` y `SHA256SUMS`.
+3. Pulsar «Generate release notes» y «Publish release».
+
+Con el release publicado quedan operativos `scripts/install.sh` y `npx skills add bioodev/mkdocx`.
+Para deshacer el tag antes de publicar: `git push --delete origin v0.1.0 && git tag -d v0.1.0`.
 
 ## Reproducir las pruebas
 Los scripts de esta sesión no se guardaron en el repo. Para que esto sea repetible: añadir a `testdata/` la plantilla de LibreOffice (`tpl.fodt` → `tpl.docx`) y un `torture.md` con los casos E2–E5, y un `make smoke` que convierta `testdata/*.md` y, si `soffice` existe, valide con `soffice --headless --convert-to pdf`.
