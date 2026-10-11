@@ -52,7 +52,7 @@ fi
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-fetch "$BASE/$asset" "$tmp/$asset" || err "no se pudo descargar $BASE/$asset"
+fetch "$BASE/$asset" "$tmp/$asset" || err "no se pudo descargar $BASE/$asset (¿existe un release publicado en https://github.com/$REPO/releases?)"
 fetch "$BASE/SHA256SUMS" "$tmp/SHA256SUMS" || err "no se pudo descargar $BASE/SHA256SUMS"
 
 want=$(awk -v f="$asset" '$2 == f || $2 == "*" f { print $1 }' "$tmp/SHA256SUMS")
