@@ -202,6 +202,17 @@ func unescapeText(src []byte) string {
 	return string(util.ResolveEntityNames(util.ResolveNumericReferences(util.UnescapePunctuations(src))))
 }
 
+// autoLink convierte un `<https://x>` o `<a@b>` en un inline enlazado.
+func (p *parser) autoLink(v *ast.AutoLink, st Inline) Inline {
+	t := st
+	t.Text = string(v.Label(p.src))
+	t.URL = string(v.URL(p.src))
+	if v.AutoLinkType == ast.AutoLinkEmail && !strings.HasPrefix(strings.ToLower(t.URL), "mailto:") {
+		t.URL = "mailto:" + t.URL
+	}
+	return t
+}
+
 // walkRaw recorre n sin resolver escapes ni entidades; se usa dentro de `código`.
 func (p *parser) walkRaw(n ast.Node, st Inline) []Inline {
 	var out []Inline
@@ -236,6 +247,8 @@ func (p *parser) walkRaw(n ast.Node, st Inline) []Inline {
 			s := st
 			s.URL = string(v.Destination)
 			out = append(out, p.walkRaw(v, s)...)
+		case *ast.AutoLink:
+			out = append(out, p.autoLink(v, st))
 		default:
 			out = append(out, p.walkRaw(c, st)...)
 		}
@@ -278,6 +291,8 @@ func (p *parser) walk(n ast.Node, st Inline) []Inline {
 			s := st
 			s.URL = string(v.Destination)
 			out = append(out, p.walk(v, s)...)
+		case *ast.AutoLink:
+			out = append(out, p.autoLink(v, st))
 		case *ast.Image:
 			t := st
 			t.Text = p.plain(v)
