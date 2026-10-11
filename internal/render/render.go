@@ -27,7 +27,7 @@ const maxImageWidthPx = 624
 type renderer struct {
 	doc     domain.Document
 	baseDir string
-	ordered int // listas ordenadas emitidas (una instancia de numeración cada una)
+	ordered []int // inicio de cada lista ordenada emitida (una instancia de numeración cada una)
 }
 
 // Render devuelve el contenido de un .docx. Las rutas de imagen relativas se
@@ -90,8 +90,7 @@ func (r *renderer) block(b md.Block) error {
 	case md.List:
 		numID := numIDBullet
 		if v.Ordered {
-			r.ordered++
-			numID = r.ordered + 1
+			numID = r.newNumbering(v.Start)
 		}
 		return r.list(&v, numID, 0)
 	case md.Table:
@@ -142,8 +141,7 @@ func (r *renderer) containerAt(blocks []md.Block, level int) error {
 		case md.List:
 			numID := numIDBullet
 			if v.Ordered {
-				r.ordered++
-				numID = r.ordered + 1
+				numID = r.newNumbering(v.Start)
 			}
 			if err := r.list(&v, numID, level+1); err != nil {
 				return err
@@ -155,6 +153,16 @@ func (r *renderer) containerAt(blocks []md.Block, level int) error {
 		}
 	}
 	return nil
+}
+
+// newNumbering reserva una instancia de numeración nueva para una lista
+// ordenada que empieza en start (1 por defecto).
+func (r *renderer) newNumbering(start int) int {
+	if start < 1 {
+		start = 1
+	}
+	r.ordered = append(r.ordered, start)
+	return len(r.ordered) + 1
 }
 
 func (r *renderer) list(l *md.List, numID, level int) error {

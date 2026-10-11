@@ -12,7 +12,7 @@ import (
 // (una instancia por lista para que cada una reinicie en 1).
 const numIDBullet = 1
 
-func numberingXML(ordered int) string {
+func numberingXML(starts []int) string {
 	var b strings.Builder
 	b.WriteString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">`)
 	for abs, spec := range []struct{ fmtName, text string }{{"bullet", "•"}, {"decimal", ""}} {
@@ -28,10 +28,13 @@ func numberingXML(ordered int) string {
 		b.WriteString(`</w:abstractNum>`)
 	}
 	b.WriteString(`<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>`)
-	for i := 0; i < ordered; i++ {
+	for i, start := range starts {
+		if start < 1 {
+			start = 1
+		}
 		fmt.Fprintf(&b, `<w:num w:numId="%d"><w:abstractNumId w:val="1"/>`, i+2)
 		for lvl := 0; lvl < 9; lvl++ {
-			fmt.Fprintf(&b, `<w:lvlOverride w:ilvl="%d"><w:startOverride w:val="1"/></w:lvlOverride>`, lvl)
+			fmt.Fprintf(&b, `<w:lvlOverride w:ilvl="%d"><w:startOverride w:val="%d"/></w:lvlOverride>`, lvl, start)
 		}
 		b.WriteString(`</w:num>`)
 	}
@@ -41,7 +44,7 @@ func numberingXML(ordered int) string {
 
 // injectNumbering agrega word/numbering.xml (docxgo no lo genera en documentos nuevos)
 // junto con su content-type y su relación.
-func injectNumbering(src []byte, ordered int) ([]byte, error) {
+func injectNumbering(src []byte, starts []int) ([]byte, error) {
 	zr, err := zip.NewReader(bytes.NewReader(src), int64(len(src)))
 	if err != nil {
 		return nil, err
@@ -78,7 +81,7 @@ func injectNumbering(src []byte, ordered int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := w.Write([]byte(numberingXML(ordered))); err != nil {
+	if _, err := w.Write([]byte(numberingXML(starts))); err != nil {
 		return nil, err
 	}
 	if err := zw.Close(); err != nil {

@@ -95,6 +95,14 @@ func TestRenderListasOrdenadasReinician(t *testing.T) {
 	}
 }
 
+func TestRenderListaOrdenadaEmpiezaEn(t *testing.T) {
+	p := build(t, "3. a\n4. b\n", ".")
+	n := p["word/numbering.xml"]
+	if !strings.Contains(n, `w:startOverride w:val="3"`) {
+		t.Errorf("esperaba startOverride 3: %s", n)
+	}
+}
+
 func TestRenderImagenFaltante(t *testing.T) {
 	res, _ := md.Parse([]byte("![x](no-existe.png)"))
 	_, err := Render(res.Blocks, "/tmp", Meta{})
