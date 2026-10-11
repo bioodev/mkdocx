@@ -256,3 +256,18 @@ func TestRenderCitaConBloques(t *testing.T) {
 		t.Fatalf("se perdió contenido de la cita: %s", doc)
 	}
 }
+
+func TestRenderCodigoSinEspaciado(t *testing.T) {
+	doc := build(t, "```\n    x\n```\n", ".")["word/document.xml"]
+	if !strings.Contains(doc, `xml:space="preserve">    x<`) {
+		t.Fatalf("no se conservó la sangría del código: %s", doc)
+	}
+	for _, m := range regexp.MustCompile(`(?s)<w:p(?:>| ).*?</w:p>`).FindAllString(doc, -1) {
+		if !strings.Contains(m, "Consolas") {
+			continue
+		}
+		if !strings.Contains(m, `w:before="0"`) || !strings.Contains(m, `w:after="0"`) {
+			t.Fatalf("el párrafo de código no tiene espaciado 0: %s", m)
+		}
+	}
+}

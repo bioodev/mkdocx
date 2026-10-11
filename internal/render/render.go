@@ -89,16 +89,7 @@ func (r *renderer) block(b md.Block) error {
 	case md.Quote:
 		return r.container(v.Blocks, domain.StyleIDQuote)
 	case md.CodeBlock:
-		for _, line := range strings.Split(v.Text, "\n") {
-			p, err := r.doc.AddParagraph()
-			if err != nil {
-				return err
-			}
-			if err := r.inlines(p, []md.Inline{{Text: line, Code: true}}); err != nil {
-				return err
-			}
-		}
-		return nil
+		return r.codeBlock(v)
 	case md.List:
 		numID := numIDBullet
 		if v.Ordered {
@@ -162,6 +153,27 @@ func (r *renderer) containerAt(blocks []md.Block, level int) error {
 			if err := r.block(b); err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+// codeBlock emite cada línea del bloque como un párrafo con espaciado 0 (las
+// líneas de código no deben quedar separadas).
+func (r *renderer) codeBlock(b md.CodeBlock) error {
+	for _, line := range strings.Split(b.Text, "\n") {
+		p, err := r.doc.AddParagraph()
+		if err != nil {
+			return err
+		}
+		if err := p.SetSpacingBefore(0); err != nil {
+			return err
+		}
+		if err := p.SetSpacingAfter(0); err != nil {
+			return err
+		}
+		if err := r.inlines(p, []md.Inline{{Text: line, Code: true}}); err != nil {
+			return err
 		}
 	}
 	return nil
