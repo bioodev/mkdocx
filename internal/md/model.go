@@ -18,16 +18,24 @@ type Heading struct {
 	Inlines []Inline
 }
 type Paragraph struct{ Inlines []Inline }
+
+// ListItem es un ítem de lista. El primer párrafo del ítem va en Inlines y el
+// resto de bloques (código, tablas, listas anidadas, párrafos extra...) en
+// Blocks, en el mismo orden en que aparecen.
 type ListItem struct {
-	Inlines  []Inline
-	Children *List
+	Inlines []Inline
+	Blocks  []Block
 }
 type List struct {
 	Ordered bool
+	Start   int
 	Items   []ListItem
 }
 type CodeBlock struct{ Text string }
-type Quote struct{ Inlines []Inline }
+
+// Quote es una cita; se guardan sus bloques para no perder código, tablas o
+// listas anidadas.
+type Quote struct{ Blocks []Block }
 type Table struct {
 	Header [][]Inline
 	Rows   [][][]Inline

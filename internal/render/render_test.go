@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -108,5 +109,71 @@ func TestRenderImagenFormatoInvalido(t *testing.T) {
 	res, _ := md.Parse([]byte("![x](a.png)"))
 	if _, err := Render(res.Blocks, dir, Meta{}); err == nil || !strings.Contains(err.Error(), "PNG") {
 		t.Fatalf("esperaba error de formato, got %v", err)
+	}
+}
+
+// parrafos devuelve el texto de cada párrafo de document.xml, en orden.
+func parrafos(t *testing.T, doc string) []string {
+	t.Helper()
+	reText := regexp.MustCompile(`<w:t[^>]*>(.*?)</w:t>`)
+	var out []string
+	for _, m := range regexp.MustCompile(`(?s)<w:p(?:>| )`).FindAllStringIndex(doc, -1) {
+		end := strings.Index(doc[m[0]:], "</w:p>")
+		if end < 0 {
+			continue
+		}
+		var b strings.Builder
+		for _, tm := range reText.FindAllStringSubmatch(doc[m[0]:m[0]+end], -1) {
+			b.WriteString(tm[1])
+		}
+		out = append(out, b.String())
+	}
+	return out
+}
+
+func hayParrafo(ps []string, want string) bool {
+	for _, p := range ps {
+		if strings.Contains(p, want) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestRenderCodigoDentroDeItem(t *testing.T) {
+	doc := build(t, "- a\n\n  ```\n  code\n  ```\n", ".")["word/document.xml"]
+	if !strings.Contains(doc, "code") {
+		t.Fatalf("se perdió el bloque de código del ítem: %s", doc)
+	}
+}
+
+func TestRenderListaDentroDeCita(t *testing.T) {
+	doc := build(t, "> - x\n> - y\n", ".")["word/document.xml"]
+	ps := parrafos(t, doc)
+	var xs []string
+	for _, p := range ps {
+		if p == "x" || p == "y" {
+			xs = append(xs, p)
+		}
+	}
+	if len(xs) != 2 {
+		t.Fatalf("esperaba x e y en párrafos distintos, ps=%q", ps)
+	}
+}
+
+func TestRenderItemsLoose(t *testing.T) {
+	doc := build(t, "- uno\n\n  dos\n\n- tres\n", ".")["word/document.xml"]
+	ps := parrafos(t, doc)
+	for _, want := range []string{"uno", "dos", "tres"} {
+		if !hayParrafo(ps, want) {
+			t.Fatalf("falta el párrafo %q en %q", want, ps)
+		}
+	}
+}
+
+func TestRenderCitaConBloques(t *testing.T) {
+	doc := build(t, "> cita\n>\n> ```\n> z\n> ```\n", ".")["word/document.xml"]
+	if !strings.Contains(doc, "cita") || !strings.Contains(doc, "z") {
+		t.Fatalf("se perdió contenido de la cita: %s", doc)
 	}
 }

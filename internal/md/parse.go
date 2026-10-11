@@ -80,25 +80,13 @@ func (p *parser) blocks(parent ast.Node) []Block {
 		case *ast.FencedCodeBlock, *ast.CodeBlock:
 			out = append(out, CodeBlock{Text: p.lines(n)})
 		case *ast.Blockquote:
-			var in []Inline
-			for c := v.FirstChild(); c != nil; c = c.NextSibling() {
-				if len(in) > 0 {
-					in = append(in, Inline{Text: "\n"})
-				}
-				in = append(in, p.inlines(c, Inline{})...)
-			}
-			out = append(out, Quote{Inlines: in})
+			out = append(out, Quote{Blocks: p.blocks(v)})
 		case *extast.Table:
 			out = append(out, p.table(v))
-		case *ast.HTMLBlock:
-			raw := strings.TrimSpace(p.lines(v))
-			if raw == pageBreakMarker {
-				out = append(out, PageBreak{})
-			} else {
-				p.warn("HTML embebido ignorado")
+		default:
+			if blk, ok := p.misc(n); ok {
+				out = append(out, blk)
 			}
-		case *ast.ThematicBreak:
-			p.warn("regla horizontal (---) ignorada; usa <!-- pagebreak --> para saltar de página")
 		}
 	}
 	return out
@@ -135,23 +123,73 @@ func (p *parser) plain(n ast.Node) string {
 }
 
 func (p *parser) list(l *ast.List) *List {
-	out := &List{Ordered: l.IsOrdered()}
+	out := &List{Ordered: l.IsOrdered(), Start: l.Start}
 	for it := l.FirstChild(); it != nil; it = it.NextSibling() {
-		item := ListItem{}
-		for c := it.FirstChild(); c != nil; c = c.NextSibling() {
-			switch v := c.(type) {
-			case *ast.List:
-				item.Children = p.list(v)
-			default:
-				if len(item.Inlines) > 0 {
-					item.Inlines = append(item.Inlines, Inline{Text: " "})
-				}
-				item.Inlines = append(item.Inlines, p.inlines(c, Inline{})...)
-			}
-		}
-		out.Items = append(out.Items, item)
+		out.Items = append(out.Items, p.listItem(it))
 	}
 	return out
+}
+
+// listItem extrae el primer párrafo del ítem en Inlines y conserva el resto de
+// bloques (incluidas las listas anidadas) en Blocks.
+func (p *parser) listItem(it ast.Node) ListItem {
+	item := ListItem{}
+	first := true
+	for c := it.FirstChild(); c != nil; c = c.NextSibling() {
+		// El primer párrafo se queda como texto del ítem; los siguientes,
+		// separados, evitan la pérdida de párrafos en listas "loose".
+		if _, ok := c.(*ast.Paragraph); ok && first {
+			item.Inlines = p.inlines(c, Inline{})
+			first = false
+			continue
+		}
+		if _, ok := c.(*ast.TextBlock); ok && first {
+			item.Inlines = p.inlines(c, Inline{})
+			first = false
+			continue
+		}
+		first = false
+		if blk, ok := p.listItemBlock(c); ok {
+			item.Blocks = append(item.Blocks, blk)
+		}
+	}
+	return item
+}
+
+// listItemBlock convierte un hijo de ítem (que no es el primer párrafo) en bloque.
+func (p *parser) listItemBlock(c ast.Node) (Block, bool) {
+	switch v := c.(type) {
+	case *ast.List:
+		return *p.list(v), true
+	case *ast.FencedCodeBlock, *ast.CodeBlock:
+		return CodeBlock{Text: p.lines(c)}, true
+	case *ast.Blockquote:
+		return Quote{Blocks: p.blocks(c)}, true
+	case *extast.Table:
+		return p.table(v), true
+	case *ast.Heading:
+		return Heading{Level: v.Level, Inlines: p.inlines(v, Inline{})}, true
+	case *ast.Paragraph, *ast.TextBlock:
+		if img, ok := p.soloImage(c); ok {
+			return img, true
+		}
+		return Paragraph{Inlines: p.inlines(c, Inline{})}, true
+	}
+	return nil, false
+}
+
+// misc traduce bloques sueltos que no tienen contenido propio (HTML, reglas).
+func (p *parser) misc(c ast.Node) (Block, bool) {
+	switch v := c.(type) {
+	case *ast.HTMLBlock:
+		if strings.TrimSpace(p.lines(v)) == pageBreakMarker {
+			return PageBreak{}, true
+		}
+		p.warn("HTML embebido ignorado")
+	case *ast.ThematicBreak:
+		p.warn("regla horizontal (---) ignorada; usa <!-- pagebreak --> para saltar de página")
+	}
+	return nil, false
 }
 
 func (p *parser) table(t *extast.Table) Table {

@@ -32,15 +32,22 @@ func TestParseBlocks(t *testing.T) {
 		{"imagen", "![alt](p.png)", []Block{Image{Path: "p.png", Alt: "alt"}}},
 		{"pagebreak", "<!-- pagebreak -->", []Block{PageBreak{}}},
 		{"codigo", "```go\nfmt.Println()\n```", []Block{CodeBlock{"fmt.Println()"}}},
-		{"cita", "> hola", []Block{Quote{[]Inline{{Text: "hola"}}}}},
+		{"cita", "> hola", []Block{Quote{[]Block{Paragraph{[]Inline{{Text: "hola"}}}}}}},
 		{"xml literal", "a < b & c é 😀", []Block{Paragraph{[]Inline{{Text: "a < b & c é 😀"}}}}},
 		{"escapes y entidades", `\*no\* AT&amp;T &copy;`, []Block{Paragraph{[]Inline{{Text: "*no* AT&T ©"}}}}},
 		{"codigo no desescapa", "`\\*x\\* &amp;`", []Block{Paragraph{[]Inline{{Text: `\*x\* &amp;`, Code: true}}}}},
 		{"lista anidada", "- a\n  - b\n- c", []Block{List{Items: []ListItem{
-			{Inlines: []Inline{{Text: "a"}}, Children: &List{Items: []ListItem{{Inlines: []Inline{{Text: "b"}}}}}},
+			{Inlines: []Inline{{Text: "a"}}, Blocks: []Block{List{Items: []ListItem{{Inlines: []Inline{{Text: "b"}}}}}}},
 			{Inlines: []Inline{{Text: "c"}}}}}}},
-		{"lista ordenada", "1. a\n2. b", []Block{List{Ordered: true, Items: []ListItem{
+		{"lista ordenada", "1. a\n2. b", []Block{List{Ordered: true, Start: 1, Items: []ListItem{
 			{Inlines: []Inline{{Text: "a"}}}, {Inlines: []Inline{{Text: "b"}}}}}}},
+		{"codigo en item", "- a\n\n  ```\n  code\n  ```", []Block{List{Items: []ListItem{
+			{Inlines: []Inline{{Text: "a"}}, Blocks: []Block{CodeBlock{"code"}}}}}}},
+		{"lista dentro de cita", "> - x\n> - y", []Block{Quote{[]Block{List{Items: []ListItem{
+			{Inlines: []Inline{{Text: "x"}}}, {Inlines: []Inline{{Text: "y"}}}}}}}}},
+		{"items loose", "- uno\n\n  dos\n\n- tres", []Block{List{Items: []ListItem{
+			{Inlines: []Inline{{Text: "uno"}}, Blocks: []Block{Paragraph{[]Inline{{Text: "dos"}}}}},
+			{Inlines: []Inline{{Text: "tres"}}}}}}},
 		{"tabla", "| A | B |\n|---|---|\n| 1 | 2 |", []Block{Table{
 			Header: [][]Inline{{{Text: "A"}}, {{Text: "B"}}},
 			Rows:   [][][]Inline{{{{Text: "1"}}, {{Text: "2"}}}}}}},

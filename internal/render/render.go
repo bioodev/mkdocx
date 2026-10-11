@@ -75,14 +75,7 @@ func (r *renderer) block(b md.Block) error {
 		}
 		return r.inlines(p, v.Inlines)
 	case md.Quote:
-		p, err := r.doc.AddParagraph()
-		if err != nil {
-			return err
-		}
-		if err := p.SetStyle(domain.StyleIDQuote); err != nil {
-			return err
-		}
-		return r.inlines(p, v.Inlines)
+		return r.container(v.Blocks, domain.StyleIDQuote)
 	case md.CodeBlock:
 		for _, line := range strings.Split(v.Text, "\n") {
 			p, err := r.doc.AddParagraph()
@@ -111,6 +104,59 @@ func (r *renderer) block(b md.Block) error {
 	return nil
 }
 
+// container renderiza bloques de un contenedor (cita o ítem de lista). Los
+// párrafos reciben el estilo indicado; el resto de bloques se emiten en orden.
+func (r *renderer) container(blocks []md.Block, style string) error {
+	for _, b := range blocks {
+		switch v := b.(type) {
+		case md.Paragraph:
+			p, err := r.doc.AddParagraph()
+			if err != nil {
+				return err
+			}
+			if style != "" {
+				if err := p.SetStyle(style); err != nil {
+					return err
+				}
+			}
+			if err := r.inlines(p, v.Inlines); err != nil {
+				return err
+			}
+		default:
+			if err := r.block(b); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// containerAt es como container pero anida las listas en un nivel de sangría.
+func (r *renderer) containerAt(blocks []md.Block, level int) error {
+	for _, b := range blocks {
+		switch v := b.(type) {
+		case md.Paragraph:
+			if err := r.container([]md.Block{v}, ""); err != nil {
+				return err
+			}
+		case md.List:
+			numID := numIDBullet
+			if v.Ordered {
+				r.ordered++
+				numID = r.ordered + 1
+			}
+			if err := r.list(&v, numID, level+1); err != nil {
+				return err
+			}
+		default:
+			if err := r.block(b); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (r *renderer) list(l *md.List, numID, level int) error {
 	lvl := min(level, 8)
 	for _, it := range l.Items {
@@ -127,15 +173,8 @@ func (r *renderer) list(l *md.List, numID, level int) error {
 		if err := r.inlines(p, it.Inlines); err != nil {
 			return err
 		}
-		if it.Children != nil {
-			childID := numIDBullet
-			if it.Children.Ordered {
-				r.ordered++
-				childID = r.ordered + 1
-			}
-			if err := r.list(it.Children, childID, level+1); err != nil {
-				return err
-			}
+		if err := r.containerAt(it.Blocks, lvl); err != nil {
+			return err
 		}
 	}
 	return nil
