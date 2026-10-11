@@ -21,7 +21,7 @@ make release   # dist/ para linux/mac/windows (amd64+arm64) + SHA256SUMS
 ## Limitaciones
 - Plantillas: solo `{{clave}}` / `{{a.b}}` planas (sin bucles ni arrays).
 - Markdown: sin notas al pie, HTML embebido, fórmulas ni tachado.
-- Imágenes: solo PNG y JPEG.
+- Imágenes: solo PNG y JPEG locales; las remotas se convierten en enlace.
 
 ## Códigos de salida
 `0` ok · `1` uso o entrada inválida · `2` fallo interno.

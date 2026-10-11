@@ -22,10 +22,10 @@ Con `-o archivo`, stdout imprime solo la ruta generada. Los avisos (`aviso: ...`
 Las imágenes relativas se resuelven respecto al `.md` (o al cwd si la entrada es `-`).
 
 ### Markdown soportado
-Títulos `#`–`######`, párrafos, `**negrita**`, `*cursiva*`, `` `código` ``, enlaces, listas con viñetas y numeradas (anidadas, numeración real de Word), bloques de código, citas `>`, tablas GFM (la primera fila va en negrita), imágenes PNG/JPEG locales (se escalan al ancho de página) y saltos de página con `<!-- pagebreak -->`.
+Títulos `#`–`######`, párrafos, `**negrita**`, `*cursiva*`, `` `código` ``, enlaces y autoenlaces `<https://…>`, escapes (`\*`) y entidades (`&amp;`), listas con viñetas y numeradas (anidadas, numeración real de Word, respetan el número inicial `3.`), bloques de código (con sangría conservada), citas `>`, tablas GFM (la primera fila va en negrita), bloques dentro de ítems de lista y de citas, imágenes PNG/JPEG locales (se escalan al área de página) y saltos de página con `<!-- pagebreak -->`.
 
 ### No soportado (se avisa o se ignora)
-Front matter YAML, HTML embebido, tachado, `---` (regla horizontal) e imágenes dentro de texto en línea se avisan en stderr y se ignoran. Notas al pie (`[^1]`) y fórmulas **no** se interpretan: salen como texto literal, sin aviso.
+Front matter YAML (solo si el `---` inicial va seguido de una línea no vacía), HTML embebido, tachado, `---` (regla horizontal) e imágenes dentro de texto en línea se avisan en stderr y se ignoran. Las imágenes remotas (`http(s)://`) se convierten en un enlace con aviso. Notas al pie (`[^1]`) y fórmulas **no** se interpretan: salen como texto literal, sin aviso.
 
 ## Plantilla + datos
 La plantilla es un `.docx` con marcadores `{{clave}}` o `{{cliente.nombre}}` (también en tablas, encabezados y pies).
