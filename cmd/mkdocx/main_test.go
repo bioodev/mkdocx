@@ -3,6 +3,8 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/xml"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,6 +57,70 @@ func TestBuildStdinStdout(t *testing.T) {
 	code, so, _ := exec(t, "# hola", "build", "-", "-o", "-")
 	if code != 0 || !strings.HasPrefix(so, "PK") {
 		t.Fatalf("code=%d, salida no es zip", code)
+	}
+}
+
+// xmlBienFormado parsea todos los tokens para comprobar que el XML es válido.
+func xmlBienFormado(t *testing.T, name, s string) {
+	t.Helper()
+	d := xml.NewDecoder(strings.NewReader(s))
+	for {
+		if _, err := d.Token(); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatalf("XML inválido en %s: %v", name, err)
+		}
+	}
+}
+
+// TestBuildEjemploEndToEnd genera el documento de testdata/ejemplo.md y valida
+// el .docx completo: zip correcto, partes XML/rels bien formadas, contenido,
+// numbering y al menos una imagen.
+func TestBuildEjemploEndToEnd(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "ejemplo.docx")
+	code, _, se := exec(t, "", "build", "../../testdata/ejemplo.md", "-o", out)
+	if code != 0 {
+		t.Fatalf("code=%d stderr=%q", code, se)
+	}
+	zr, err := zip.OpenReader(out)
+	if err != nil {
+		t.Fatalf("zip inválido: %v", err)
+	}
+	defer zr.Close()
+
+	var doc string
+	tieneNumbering := false
+	var media []string
+	for _, f := range zr.File {
+		rc, err := f.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.HasSuffix(f.Name, ".xml") || strings.HasSuffix(f.Name, ".rels") {
+			xmlBienFormado(t, f.Name, string(data))
+		}
+		switch {
+		case f.Name == "word/document.xml":
+			doc = string(data)
+		case f.Name == "word/numbering.xml":
+			tieneNumbering = true
+		case strings.HasPrefix(f.Name, "word/media/"):
+			media = append(media, f.Name)
+		}
+	}
+	if !strings.Contains(doc, "Informe de ejemplo") || !strings.Contains(doc, "Segunda página") {
+		t.Error("word/document.xml no contiene 'Informe de ejemplo' y 'Segunda página'")
+	}
+	if !tieneNumbering {
+		t.Error("falta word/numbering.xml")
+	}
+	if len(media) == 0 {
+		t.Error("no hay archivos en word/media/")
 	}
 }
 
