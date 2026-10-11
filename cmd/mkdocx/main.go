@@ -81,7 +81,15 @@ func writeOutput(out string, data []byte, stdout io.Writer) error {
 	if st, err := os.Stat(dir); err != nil || !st.IsDir() {
 		return userErr("directorio de salida inexistente: %s", dir)
 	}
-	tmp, err := os.CreateTemp(dir, ".mkdocx-*.tmp")
+	// Si la salida ya existe, conserva sus permisos; si no, deja que el sistema
+	// aplique la umask a 0o666, igual que os.Create.
+	perm := os.FileMode(0o666)
+	existia := false
+	if st, err := os.Stat(out); err == nil {
+		perm = st.Mode().Perm()
+		existia = true
+	}
+	tmp, err := crearTemp(dir, perm)
 	if err != nil {
 		return userErr("no se puede escribir en %s: %v", dir, err)
 	}
@@ -89,6 +97,14 @@ func writeOutput(out string, data []byte, stdout io.Writer) error {
 	if _, err := tmp.Write(data); err != nil {
 		tmp.Close()
 		return err
+	}
+	// OpenFile filtra el modo por la umask incluso al pasar los permisos
+	// originales, así que los reponemos explícitamente si ya existía.
+	if existia {
+		if err := tmp.Chmod(perm); err != nil {
+			tmp.Close()
+			return err
+		}
 	}
 	if err := tmp.Close(); err != nil {
 		return err
@@ -98,6 +114,23 @@ func writeOutput(out string, data []byte, stdout io.Writer) error {
 	}
 	_, err = fmt.Fprintln(stdout, out)
 	return err
+}
+
+// crearTemp abre un archivo temporal único en dir con los permisos indicados.
+// Sustituye a os.CreateTemp, que fuerza 0600, para que la umask del proceso
+// module el modo de un archivo nuevo; con O_EXCL nunca pisa uno existente.
+func crearTemp(dir string, perm os.FileMode) (*os.File, error) {
+	for i := 0; i < 10000; i++ {
+		name := filepath.Join(dir, fmt.Sprintf(".mkdocx-%d-%d.tmp", os.Getpid(), i))
+		f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, perm)
+		if err == nil {
+			return f, nil
+		}
+		if !os.IsExist(err) {
+			return nil, err
+		}
+	}
+	return nil, fmt.Errorf("demasiados archivos temporales en %s", dir)
 }
 
 func readInput(path string, stdin io.Reader) ([]byte, error) {
