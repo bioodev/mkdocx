@@ -63,7 +63,7 @@ Arrastrados de la revisión anterior: el texto alternativo de las imágenes no r
 - `{{ clave }}` con espacios (normalizar antes del merge).
 - `--reference-doc estilos.docx` para tomar estilos y página de una plantilla (como pandoc).
 - Alineación de columnas en tablas (`:--:`).
-- Release etiquetado (`v0.1.0`) con `make release` y binarios publicados en GitHub.
+- ~~Release etiquetado con binarios en GitHub~~ → hecho: `make publish VERSION=vX.Y.Z` (`scripts/release.sh`, sin gh) + `skills/mkdocx/scripts/install.sh`. Falta publicar el primer release (`v0.1.0`).
 
 ## Reproducir las pruebas
 Los scripts de esta sesión no se guardaron en el repo. Para que esto sea repetible: añadir a `testdata/` la plantilla de LibreOffice (`tpl.fodt` → `tpl.docx`) y un `torture.md` con los casos E2–E5, y un `make smoke` que convierta `testdata/*.md` y, si `soffice` existe, valide con `soffice --headless --convert-to pdf`.
