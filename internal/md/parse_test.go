@@ -32,6 +32,8 @@ func TestParseBlocks(t *testing.T) {
 		{"codigo", "```go\nfmt.Println()\n```", []Block{CodeBlock{"fmt.Println()"}}},
 		{"cita", "> hola", []Block{Quote{[]Inline{{Text: "hola"}}}}},
 		{"xml literal", "a < b & c é 😀", []Block{Paragraph{[]Inline{{Text: "a < b & c é 😀"}}}}},
+		{"escapes y entidades", `\*no\* AT&amp;T &copy;`, []Block{Paragraph{[]Inline{{Text: "*no* AT&T ©"}}}}},
+		{"codigo no desescapa", "`\\*x\\* &amp;`", []Block{Paragraph{[]Inline{{Text: `\*x\* &amp;`, Code: true}}}}},
 		{"lista anidada", "- a\n  - b\n- c", []Block{List{Items: []ListItem{
 			{Inlines: []Inline{{Text: "a"}}, Children: &List{Items: []ListItem{{Inlines: []Inline{{Text: "b"}}}}}},
 			{Inlines: []Inline{{Text: "c"}}}}}}},

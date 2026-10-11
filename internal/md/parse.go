@@ -9,6 +9,7 @@ import (
 	"github.com/yuin/goldmark/extension"
 	extast "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 )
 
 const pageBreakMarker = "<!-- pagebreak -->"
@@ -127,7 +128,7 @@ func (p *parser) soloImage(n ast.Node) (Image, bool) {
 
 func (p *parser) plain(n ast.Node) string {
 	var b strings.Builder
-	for _, in := range p.inlines(n, Inline{}) {
+	for _, in := range p.rawInlines(n, Inline{}) {
 		b.WriteString(in.Text)
 	}
 	return b.String()
@@ -171,8 +172,17 @@ func (p *parser) table(t *extast.Table) Table {
 
 // inlines aplana los hijos de n y fusiona tramos contiguos con el mismo formato.
 func (p *parser) inlines(n ast.Node, st Inline) []Inline {
+	return mergeInlines(p.walk(n, st))
+}
+
+// rawInlines es como inlines pero sin resolver escapes ni entidades (código).
+func (p *parser) rawInlines(n ast.Node, st Inline) []Inline {
+	return mergeInlines(p.walkRaw(n, st))
+}
+
+func mergeInlines(list []Inline) []Inline {
 	var out []Inline
-	for _, in := range p.walk(n, st) {
+	for _, in := range list {
 		if k := len(out) - 1; k >= 0 && sameStyle(out[k], in) {
 			out[k].Text += in.Text
 			continue
@@ -186,6 +196,53 @@ func sameStyle(a, b Inline) bool {
 	return a.Bold == b.Bold && a.Italic == b.Italic && a.Code == b.Code && a.URL == b.URL
 }
 
+// unescapeText resuelve escapes (`\*`) y entidades (`&amp;`, `&#169;`) igual que
+// el renderer HTML de goldmark. No se aplica dentro de código.
+func unescapeText(src []byte) string {
+	return string(util.ResolveEntityNames(util.ResolveNumericReferences(util.UnescapePunctuations(src))))
+}
+
+// walkRaw recorre n sin resolver escapes ni entidades; se usa dentro de `código`.
+func (p *parser) walkRaw(n ast.Node, st Inline) []Inline {
+	var out []Inline
+	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+		switch v := c.(type) {
+		case *ast.Text:
+			t := st
+			t.Text = string(v.Segment.Value(p.src))
+			if v.HardLineBreak() {
+				t.Text += "\n"
+			} else if v.SoftLineBreak() {
+				t.Text += " "
+			}
+			out = append(out, t)
+		case *ast.String:
+			t := st
+			t.Text = string(v.Value)
+			out = append(out, t)
+		case *ast.CodeSpan:
+			s := st
+			s.Code = true
+			out = append(out, p.rawInlines(v, s)...)
+		case *ast.Emphasis:
+			s := st
+			if v.Level >= 2 {
+				s.Bold = true
+			} else {
+				s.Italic = true
+			}
+			out = append(out, p.walkRaw(v, s)...)
+		case *ast.Link:
+			s := st
+			s.URL = string(v.Destination)
+			out = append(out, p.walkRaw(v, s)...)
+		default:
+			out = append(out, p.walkRaw(c, st)...)
+		}
+	}
+	return out
+}
+
 // walk aplana los hijos de n acumulando el estilo heredado.
 func (p *parser) walk(n ast.Node, st Inline) []Inline {
 	var out []Inline
@@ -193,7 +250,7 @@ func (p *parser) walk(n ast.Node, st Inline) []Inline {
 		switch v := c.(type) {
 		case *ast.Text:
 			t := st
-			t.Text = string(v.Segment.Value(p.src))
+			t.Text = unescapeText(v.Segment.Value(p.src))
 			out = append(out, t)
 			if v.HardLineBreak() {
 				out = append(out, Inline{Text: "\n"})
