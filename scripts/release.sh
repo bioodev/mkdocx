@@ -2,6 +2,7 @@
 # Publica un release en GitHub sin gh: test, binarios, tag y subida por la API.
 #
 # Uso:   GITHUB_TOKEN=... scripts/release.sh v0.1.0
+#        MANUAL=1 scripts/release.sh v0.1.0    # sin token: tag por SSH; el release se crea en la web
 #        DRY_RUN=1 scripts/release.sh v0.1.0   # todo menos push y API
 #
 # El token necesita permiso "Contents: write" sobre el repo. Si algo falla a
@@ -11,6 +12,7 @@ set -euo pipefail
 
 VERSION=${1:-}
 DRY_RUN=${DRY_RUN:-}
+MANUAL=${MANUAL:-}
 API=${GITHUB_API_URL:-https://api.github.com}
 UPLOADS=${GITHUB_UPLOADS_URL:-https://uploads.github.com}
 
@@ -18,8 +20,10 @@ err() { echo "release: $*" >&2; exit 1; }
 paso() { echo "==> $*"; }
 
 [[ $VERSION =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || err "uso: scripts/release.sh vX.Y.Z"
-command -v jq >/dev/null || err "se necesita jq"
-[[ -n $DRY_RUN || -n ${GITHUB_TOKEN:-} ]] || err "falta GITHUB_TOKEN (o usa DRY_RUN=1)"
+if [[ -z $DRY_RUN && -z $MANUAL ]]; then
+	command -v jq >/dev/null || err "se necesita jq"
+	[[ -n ${GITHUB_TOKEN:-} ]] || err "falta GITHUB_TOKEN (o usa MANUAL=1 o DRY_RUN=1)"
+fi
 
 cd "$(git rev-parse --show-toplevel)"
 REPO=$(git remote get-url origin | sed -E 's#.*[:/]([^/]+/[^/]+)$#\1#; s#\.git$##')
@@ -58,6 +62,15 @@ if [[ -n $nuevo_tag ]]; then
 	git tag -a "$VERSION" -m "mkdocx $VERSION"
 fi
 git push -q origin "refs/tags/$VERSION"
+
+if [[ -n $MANUAL ]]; then
+	paso "tag $VERSION subido. Falta crear el release en la web:"
+	echo "    1. Abre https://github.com/$REPO/releases/new?tag=$VERSION"
+	echo "    2. Arrastra estos archivos de $(pwd)/dist:"
+	for f in dist/*; do echo "         $(basename "$f")"; done
+	echo "    3. Pulsa «Generate release notes» y «Publish release»."
+	exit 0
+fi
 
 gh_api() { # gh_api MÉTODO URL [args de curl...]
 	local m=$1 u=$2

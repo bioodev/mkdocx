@@ -28,12 +28,13 @@ make release   # dist/ para linux/mac/windows (amd64+arm64) + SHA256SUMS
 ```
 
 ## Publicar un release
-Desde `main` limpio y al día, con un token de GitHub (fine-grained, permiso *Contents: write* solo en este repo):
+Desde `main` limpio y al día:
 ```bash
 DRY_RUN=1 make publish VERSION=v0.1.0             # ensayo: tests + binarios, sin push ni API
-GITHUB_TOKEN=… make publish VERSION=v0.1.0        # tag + push + release con binarios y SHA256SUMS
+MANUAL=1 make publish VERSION=v0.1.0              # sin token: tag por SSH; luego subes dist/ en la web (el script indica cómo)
+GITHUB_TOKEN=… make publish VERSION=v0.1.0        # todo automático vía API (token fine-grained, Contents: write)
 ```
-Si falla a medias, vuelve a ejecutarlo: reutiliza el tag y el release y sube solo lo que falta.
+SSH solo sirve para Git (commits y tags); los releases y sus binarios son de la plataforma GitHub y solo se crean desde la web o la API (con token). Si falla a medias, vuelve a ejecutarlo: reutiliza el tag y el release y sube solo lo que falta.
 
 ## Limitaciones
 - Plantillas: solo `{{clave}}` / `{{a.b}}` planas (sin bucles ni arrays).
