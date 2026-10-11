@@ -319,7 +319,9 @@ func (p *parser) walk(n ast.Node, st Inline) []Inline {
 			if v.HardLineBreak() {
 				out = append(out, Inline{Text: "\n"})
 			} else if v.SoftLineBreak() {
-				out = append(out, Inline{Text: " ", Bold: st.Bold, Italic: st.Italic})
+				soft := st
+				soft.Text = " "
+				out = append(out, soft)
 			}
 		case *ast.String:
 			t := st

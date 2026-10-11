@@ -29,6 +29,7 @@ func TestParseBlocks(t *testing.T) {
 		{"enlace", "[x](http://u)", []Block{Paragraph{[]Inline{{Text: "x", URL: "http://u"}}}}},
 		{"autoenlace", "<https://go.dev>", []Block{Paragraph{[]Inline{{Text: "https://go.dev", URL: "https://go.dev"}}}}},
 		{"autoenlace correo", "<a@b.cl>", []Block{Paragraph{[]Inline{{Text: "a@b.cl", URL: "mailto:a@b.cl"}}}}},
+		{"salto suave en enlace", "[foo\nbar](u)", []Block{Paragraph{[]Inline{{Text: "foo bar", URL: "u"}}}}},
 		{"imagen", "![alt](p.png)", []Block{Image{Path: "p.png", Alt: "alt"}}},
 		{"pagebreak", "<!-- pagebreak -->", []Block{PageBreak{}}},
 		{"codigo", "```go\nfmt.Println()\n```", []Block{CodeBlock{"fmt.Println()"}}},
