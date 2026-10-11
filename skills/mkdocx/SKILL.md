@@ -8,10 +8,14 @@ description: Crea documentos Word (.docx) desde Markdown o rellena plantillas .d
 CLI Go liviano: Markdown → `.docx` y plantilla `.docx` + JSON → `.docx`.
 
 ## Instalación (si `mkdocx` no está en PATH)
+Ejecuta el instalador incluido en este skill (Linux/macOS; descarga el binario del último release, verifica el SHA256 y lo deja en `~/.local/bin`):
 ```bash
-go install github.com/bioodev/mkdocx/cmd/mkdocx@latest   # o descarga el binario del release
-mkdocx --version
+sh <directorio-de-este-skill>/scripts/install.sh
+mkdocx --version          # si ~/.local/bin no está en PATH: ~/.local/bin/mkdocx
 ```
+- Versión concreta: `MKDOCX_VERSION=v0.1.0 sh …/install.sh`; otro destino: `MKDOCX_BIN_DIR=/ruta`.
+- Windows: descarga `mkdocx-windows-amd64.exe` (o `-arm64`) desde https://github.com/bioodev/mkdocx/releases/latest y renómbralo a `mkdocx.exe`.
+- Con Go instalado: `go install github.com/bioodev/mkdocx/cmd/mkdocx@latest`.
 
 ## Markdown → docx
 ```bash

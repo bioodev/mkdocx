@@ -3,7 +3,7 @@ LDFLAGS := -s -w -X main.version=$(VERSION)
 MAX_SIZE_BYTES := 10485760
 export CGO_ENABLED := 0
 
-.PHONY: build test size release
+.PHONY: build test size release publish
 build:
 	go build -ldflags '$(LDFLAGS)' -o bin/mkdocx ./cmd/mkdocx
 
@@ -22,3 +22,7 @@ release:
 	  GOOS=$$os GOARCH=$$arch go build -ldflags '$(LDFLAGS)' -o dist/mkdocx-$$os-$$arch$$ext ./cmd/mkdocx || exit 1; \
 	done
 	cd dist && sha256sum * > SHA256SUMS
+
+# Publica un release en GitHub (requiere GITHUB_TOKEN; ver scripts/release.sh).
+publish:
+	scripts/release.sh $(VERSION)
