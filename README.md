@@ -26,4 +26,4 @@ make release   # dist/ para linux/mac/windows (amd64+arm64) + SHA256SUMS
 ## Códigos de salida
 `0` ok · `1` uso o entrada inválida · `2` fallo interno.
 
-Spec y plan: `docs/superpowers/`.
+Spec y plan: `docs/superpowers/`. Errores conocidos y plan de mejoras: [`docs/pruebas-y-mejoras.md`](docs/pruebas-y-mejoras.md).
