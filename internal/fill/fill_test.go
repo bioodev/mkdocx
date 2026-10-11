@@ -3,6 +3,8 @@ package fill
 import (
 	"archive/zip"
 	"bytes"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -107,5 +109,20 @@ func TestFillAvisaMarcadorSinDato(t *testing.T) {
 	w, err := Fill(p, map[string]any{"a": "1"}, false, io.Discard)
 	if err != nil || len(w) != 1 || !strings.Contains(w[0], "falta") {
 		t.Fatalf("avisos=%v err=%v", w, err)
+	}
+}
+
+// TestClasificaErrorDeMerge comprueba que solo las claves faltantes en modo
+// estricto son error de entrada (exit 1) y el resto son fallos internos (exit 2).
+func TestClasificaErrorDeMerge(t *testing.T) {
+	var ie *InputError
+	if err := clasificarErrorMerge(fmt.Errorf("template: missing keys: nombre")); !errors.As(err, &ie) {
+		t.Errorf("claves faltantes debería ser InputError, got %T", err)
+	}
+	if err := clasificarErrorMerge(fmt.Errorf("template: consolidate runs: boom")); errors.As(err, &ie) {
+		t.Errorf("fallo interno no debería ser InputError, got %v", err)
+	}
+	if err := clasificarErrorMerge(fmt.Errorf("template: set run text: boom")); errors.As(err, &ie) {
+		t.Errorf("fallo interno no debería ser InputError, got %v", err)
 	}
 }

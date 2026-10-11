@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	docx "github.com/mmonterroca/docxgo/v2"
 	"github.com/mmonterroca/docxgo/v2/pkg/template"
@@ -76,6 +77,22 @@ func Flatten(data map[string]any) (map[string]string, error) {
 	return out, nil
 }
 
+// claveErrorFaltantes es el prefijo con que docxgo v2.14.0 señala las claves
+// faltantes en modo estricto. No exporta un tipo de error ni envuelve el suyo
+// con errors.Is, así que esta es la única vía fiable de distinguirlo.
+const claveErrorFaltantes = "template: missing keys:"
+
+// clasificarErrorMerge decide el código de salida de un fallo de MergeTemplate:
+// las claves faltantes en modo estricto son error de entrada (exit 1); el resto
+// (consolidar runs, fijar texto) son fallos internos (exit 2). Los marcadores
+// mal formados no llegan aquí: el patrón simplemente no casa y no dan error.
+func clasificarErrorMerge(err error) error {
+	if strings.HasPrefix(err.Error(), claveErrorFaltantes) {
+		return inputErr("combinar plantilla: %v", err)
+	}
+	return fmt.Errorf("combinar plantilla: %w", err)
+}
+
 // Fill abre la plantilla, aplica los datos y escribe el docx en w.
 // Con strict, un placeholder sin dato es error.
 // Devuelve avisos por marcadores sin dato (solo en modo no estricto).
@@ -99,7 +116,7 @@ func Fill(templatePath string, data map[string]any, strict bool, w io.Writer) ([
 	opts := template.DefaultMergeOptions()
 	opts.StrictMode = strict
 	if err := template.MergeTemplate(doc, template.MergeData(flat), opts); err != nil {
-		return nil, inputErr("combinar plantilla: %v", err)
+		return nil, clasificarErrorMerge(err)
 	}
 	var buf bytes.Buffer
 	if _, err := doc.WriteTo(&buf); err != nil {
