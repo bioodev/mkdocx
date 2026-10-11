@@ -8,6 +8,7 @@ import (
 	"image"
 	_ "image/jpeg" // registra decodificador para image.DecodeConfig
 	_ "image/png"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,8 +22,19 @@ import (
 // Meta son los metadatos opcionales del documento.
 type Meta struct{ Title, Author string }
 
-// maxImageWidthPx es el ancho útil aproximado de página (6,5" a 96 dpi).
-const maxImageWidthPx = 624
+// maxImageWidthPx y maxImageHeightPx son el área útil aproximada (6,5" x 9"
+// a 96 dpi); las imágenes se escalan manteniendo la proporción.
+const (
+	maxImageWidthPx  = 624
+	maxImageHeightPx = 864
+)
+
+// InputError marca los errores que dependen de la entrada del usuario (por
+// ejemplo, imágenes que no existen o con formato no soportado).
+type InputError struct{ Err error }
+
+func (e *InputError) Error() string { return e.Err.Error() }
+func (e *InputError) Unwrap() error { return e.Err }
 
 type renderer struct {
 	doc     domain.Document
@@ -315,22 +327,43 @@ func (r *renderer) image(im md.Image) error {
 	}
 	f, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("imagen no encontrada: %s", path)
+		// La ruta puede venir codificada (por ejemplo, espacios como %20).
+		if dec, derr := url.PathUnescape(path); derr == nil && dec != path {
+			if f2, err2 := os.Open(dec); err2 == nil {
+				f, path, err = f2, dec, nil
+			}
+		}
+	}
+	if err != nil {
+		return &InputError{fmt.Errorf("imagen no encontrada: %s", path)}
 	}
 	cfg, format, err := image.DecodeConfig(f)
 	f.Close()
 	if err != nil || (format != "png" && format != "jpeg") {
-		return fmt.Errorf("imagen no soportada (solo PNG y JPEG): %s", path)
+		return &InputError{fmt.Errorf("imagen no soportada (solo PNG y JPEG): %s", path)}
 	}
-	w, h := cfg.Width, cfg.Height
-	if w > maxImageWidthPx {
-		h = h * maxImageWidthPx / w
-		w = maxImageWidthPx
-	}
+	w, h := fitImage(cfg.Width, cfg.Height)
 	p, err := r.doc.AddParagraph()
 	if err != nil {
 		return err
 	}
 	_, err = p.AddImageWithSize(path, domain.NewImageSize(w, h))
 	return err
+}
+
+// fitImage reduce w x h para que quepa en el área útil manteniendo la proporción.
+func fitImage(w, h int) (int, int) {
+	if w <= maxImageWidthPx && h <= maxImageHeightPx {
+		return w, h
+	}
+	nw, nh := w, h
+	if w > maxImageWidthPx {
+		nh = h * maxImageWidthPx / w
+		nw = maxImageWidthPx
+	}
+	if nh > maxImageHeightPx {
+		nw = nw * maxImageHeightPx / nh
+		nh = maxImageHeightPx
+	}
+	return max(nw, 1), max(nh, 1)
 }

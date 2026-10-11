@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/bioodev/mkdocx/internal/render"
 )
 
 // parse permite flags antes o después del argumento posicional y devuelve éste.
@@ -34,9 +37,9 @@ func fprintln(w io.Writer, a ...any) { fmt.Fprintln(w, a...) }
 
 // asUserIfInput clasifica como error de usuario los fallos de imagen (rutas/formatos).
 func asUserIfInput(err error) error {
-	m := err.Error()
-	if strings.HasPrefix(m, "imagen ") {
-		return userErr("%s", m)
+	var ie *render.InputError
+	if errors.As(err, &ie) {
+		return userErr("%s", err.Error())
 	}
 	return err
 }

@@ -115,16 +115,31 @@ func (p *parser) lines(n ast.Node) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-func (p *parser) soloImage(n ast.Node) (Image, bool) {
+func (p *parser) soloImage(n ast.Node) (Block, bool) {
 	c := n.FirstChild()
 	if c == nil || c.NextSibling() != nil {
-		return Image{}, false
+		return nil, false
 	}
 	img, ok := c.(*ast.Image)
 	if !ok {
-		return Image{}, false
+		return nil, false
 	}
-	return Image{Path: string(img.Destination), Alt: p.plain(img)}, true
+	alt := p.plain(img)
+	url := string(img.Destination)
+	if isRemote(url) {
+		text := alt
+		if text == "" {
+			text = url
+		}
+		p.warn("imagen remota no soportada: se usa un enlace")
+		return Paragraph{Inlines: []Inline{{Text: text, URL: url}}}, true
+	}
+	return Image{Path: url, Alt: alt}, true
+}
+
+// isRemote indica si la ruta de una imagen es una URL http(s).
+func isRemote(path string) bool {
+	return strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://")
 }
 
 func (p *parser) plain(n ast.Node) string {

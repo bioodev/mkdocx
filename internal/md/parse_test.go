@@ -31,6 +31,7 @@ func TestParseBlocks(t *testing.T) {
 		{"autoenlace correo", "<a@b.cl>", []Block{Paragraph{[]Inline{{Text: "a@b.cl", URL: "mailto:a@b.cl"}}}}},
 		{"salto suave en enlace", "[foo\nbar](u)", []Block{Paragraph{[]Inline{{Text: "foo bar", URL: "u"}}}}},
 		{"imagen", "![alt](p.png)", []Block{Image{Path: "p.png", Alt: "alt"}}},
+		{"imagen remota", "![alt](https://x.com/i.png)", []Block{Paragraph{[]Inline{{Text: "alt", URL: "https://x.com/i.png"}}}}},
 		{"pagebreak", "<!-- pagebreak -->", []Block{PageBreak{}}},
 		{"codigo", "```go\nfmt.Println()\n```", []Block{CodeBlock{"fmt.Println()"}}},
 		{"cita", "> hola", []Block{Quote{[]Block{Paragraph{[]Inline{{Text: "hola"}}}}}}},
@@ -94,6 +95,13 @@ func TestFrontMatter(t *testing.T) {
 			t.Errorf("no debería ser front matter: %v", r.Warnings)
 		}
 	})
+}
+
+func TestImagenRemotaAvisa(t *testing.T) {
+	r := parse(t, "![a](https://x.com/i.png)")
+	if !strings.Contains(strings.Join(r.Warnings, "|"), "remota") {
+		t.Errorf("falta aviso de imagen remota: %v", r.Warnings)
+	}
 }
 
 func TestParseWarnings(t *testing.T) {

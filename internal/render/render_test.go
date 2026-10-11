@@ -4,10 +4,14 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/xml"
+	"errors"
+	"image"
+	"image/png"
 	"io"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -118,6 +122,73 @@ func TestRenderImagenFormatoInvalido(t *testing.T) {
 	if _, err := Render(res.Blocks, dir, Meta{}); err == nil || !strings.Contains(err.Error(), "PNG") {
 		t.Fatalf("esperaba error de formato, got %v", err)
 	}
+}
+
+func TestRenderImagenInputError(t *testing.T) {
+	res, _ := md.Parse([]byte("![x](no-existe.png)"))
+	_, err := Render(res.Blocks, "/tmp", Meta{})
+	var ie *InputError
+	if !errors.As(err, &ie) {
+		t.Fatalf("esperaba *InputError, got %T: %v", err, err)
+	}
+}
+
+func TestRenderImagenRutaEscapada(t *testing.T) {
+	dir := t.TempDir()
+	png := []byte{0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 'I', 'H', 'D', 'R', 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 0x1f, 0x15, 0xc4, 0x89}
+	os.WriteFile(filepath.Join(dir, "mi foto.png"), png, 0o644)
+	res, _ := md.Parse([]byte("![x](mi%20foto.png)"))
+	if _, err := Render(res.Blocks, dir, Meta{}); err != nil {
+		t.Fatalf("no resolvió la ruta escapada: %v", err)
+	}
+}
+
+func TestRenderImagenAltoMaximo(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "alta.png"), pngDe(t, 100, 5000), 0o644)
+	res, _ := md.Parse([]byte("![x](alta.png)"))
+	doc := unzip(t, mustRender(t, res.Blocks, dir))["word/document.xml"]
+	if strings.Contains(doc, `cy="5000"`) {
+		t.Errorf("no se limitó el alto: %s", doc)
+	}
+	cw, ch := extensionDe(t, doc)
+	if ch > maxImageHeightPx+1 || cw > maxImageWidthPx+1 {
+		t.Errorf("tamaño fuera de límites: %dx%d", cw, ch)
+	}
+	if cw <= 0 || ch <= 0 || ch <= cw {
+		t.Errorf("no se mantuvo la proporción: %dx%d", cw, ch)
+	}
+}
+
+func pngDe(t *testing.T, w, h int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	var b bytes.Buffer
+	if err := png.Encode(&b, img); err != nil {
+		t.Fatal(err)
+	}
+	return b.Bytes()
+}
+
+func mustRender(t *testing.T, blocks []md.Block, dir string) []byte {
+	t.Helper()
+	b, err := Render(blocks, dir, Meta{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+// extensionDe lee el cx/cy (EMU) del primer dibujo en document.xml.
+func extensionDe(t *testing.T, doc string) (int, int) {
+	t.Helper()
+	m := regexp.MustCompile(`<wp:extent cx="(\d+)" cy="(\d+)"`).FindStringSubmatch(doc)
+	if m == nil {
+		t.Fatalf("no se encontró wp:extent en %s", doc)
+	}
+	cx, _ := strconv.Atoi(m[1])
+	cy, _ := strconv.Atoi(m[2])
+	return cx / 9525, cy / 9525 // EMU -> px a 96 dpi
 }
 
 // parrafos devuelve el texto de cada párrafo de document.xml, en orden.
