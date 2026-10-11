@@ -11,8 +11,8 @@ set -euo pipefail
 
 VERSION=${1:-}
 DRY_RUN=${DRY_RUN:-}
-API=https://api.github.com
-UPLOADS=https://uploads.github.com
+API=${GITHUB_API_URL:-https://api.github.com}
+UPLOADS=${GITHUB_UPLOADS_URL:-https://uploads.github.com}
 
 err() { echo "release: $*" >&2; exit 1; }
 paso() { echo "==> $*"; }
