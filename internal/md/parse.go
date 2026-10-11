@@ -31,22 +31,35 @@ func Parse(src []byte) (Result, error) {
 	return res, nil
 }
 
+// stripFrontMatter aplica la regla de pandoc: el bloque YAML solo cuenta si la
+// línea siguiente al `---` inicial no está en blanco y el cierre es una línea
+// con exactamente `---` o `...`.
 func stripFrontMatter(src []byte, res *Result) []byte {
-	if !bytes.HasPrefix(src, []byte("---\n")) && !bytes.HasPrefix(src, []byte("---\r\n")) {
+	rest, ok := bytes.CutPrefix(src, []byte("---\r\n"))
+	if !ok {
+		rest, ok = bytes.CutPrefix(src, []byte("---\n"))
+	}
+	if !ok || len(rest) == 0 || rest[0] == '\n' || rest[0] == '\r' {
 		return src
 	}
-	rest := src[4:]
-	if i := bytes.Index(rest, []byte("\n---")); i >= 0 {
-		end := i + 4
-		if j := bytes.IndexByte(rest[end:], '\n'); j >= 0 {
-			end += j + 1
-		} else {
-			end = len(rest)
+	for len(rest) > 0 {
+		line := rest
+		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+			line = line[:i+1]
 		}
-		res.Warnings = append(res.Warnings, "front matter YAML ignorado")
-		return rest[end:]
+		if isFrontMatterEnd(line) {
+			res.Warnings = append(res.Warnings, "front matter YAML ignorado")
+			return rest[len(line):]
+		}
+		rest = rest[len(line):]
 	}
 	return src
+}
+
+func isFrontMatterEnd(line []byte) bool {
+	line = bytes.TrimSuffix(line, []byte("\n"))
+	line = bytes.TrimSuffix(line, []byte("\r"))
+	return bytes.Equal(line, []byte("---")) || bytes.Equal(line, []byte("..."))
 }
 
 type parser struct {

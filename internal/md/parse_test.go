@@ -62,6 +62,39 @@ func TestParseBlocks(t *testing.T) {
 	}
 }
 
+func TestFrontMatter(t *testing.T) {
+	t.Run("linea en blanco no es front matter", func(t *testing.T) {
+		r := parse(t, "---\n\nIntro\n\n---\n\nmore")
+		if len(r.Blocks) == 0 || !reflect.DeepEqual(r.Blocks[0], Paragraph{[]Inline{{Text: "Intro"}}}) {
+			t.Fatalf("se perdió Intro: %#v", r.Blocks)
+		}
+		if !strings.Contains(strings.Join(r.Warnings, "|"), "regla horizontal") {
+			t.Errorf("faltan avisos: %v", r.Warnings)
+		}
+	})
+	t.Run("front matter válido", func(t *testing.T) {
+		r := parse(t, "---\ntitle: x\n---\n# T")
+		if !strings.Contains(strings.Join(r.Warnings, "|"), "front matter") {
+			t.Errorf("faltan avisos: %v", r.Warnings)
+		}
+		if len(r.Blocks) != 1 || !reflect.DeepEqual(r.Blocks[0], Heading{1, []Inline{{Text: "T"}}}) {
+			t.Fatalf("bloques inesperados: %#v", r.Blocks)
+		}
+	})
+	t.Run("front matter con CRLF", func(t *testing.T) {
+		r := parse(t, "---\r\ntitle: x\r\n---\r\n# T")
+		if !strings.Contains(strings.Join(r.Warnings, "|"), "front matter") {
+			t.Errorf("faltan avisos: %v", r.Warnings)
+		}
+	})
+	t.Run("cierre inválido no es front matter", func(t *testing.T) {
+		r := parse(t, "---\na: b\n----x")
+		if strings.Contains(strings.Join(r.Warnings, "|"), "front matter") {
+			t.Errorf("no debería ser front matter: %v", r.Warnings)
+		}
+	})
+}
+
 func TestParseWarnings(t *testing.T) {
 	r := parse(t, "---\ntitle: x\n---\n\n# Hola\n\n<div>x</div>\n\n---\n\n~~t~~")
 	joined := strings.Join(r.Warnings, "|")
