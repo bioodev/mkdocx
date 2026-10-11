@@ -3,6 +3,7 @@ package fill
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -124,5 +125,68 @@ func TestClasificaErrorDeMerge(t *testing.T) {
 	}
 	if err := clasificarErrorMerge(fmt.Errorf("template: set run text: boom")); errors.As(err, &ie) {
 		t.Errorf("fallo interno no debería ser InputError, got %v", err)
+	}
+}
+
+// validarXML parsea todos los tokens para comprobar que el XML está bien formado.
+func validarXML(t *testing.T, name, s string) {
+	t.Helper()
+	d := xml.NewDecoder(strings.NewReader(s))
+	for {
+		if _, err := d.Token(); err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatalf("XML inválido en %s: %v", name, err)
+		}
+	}
+}
+
+// textoDeDoc devuelve el texto decodificado (todo el chardata) de un document.xml.
+func textoDeDoc(t *testing.T, s string) string {
+	t.Helper()
+	d := xml.NewDecoder(strings.NewReader(s))
+	var b strings.Builder
+	for {
+		tok, err := d.Token()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		if cd, ok := tok.(xml.CharData); ok {
+			b.Write(cd)
+		}
+	}
+	return b.String()
+}
+
+// TestFillEscapaXML comprueba que un valor con <, & y comillas no rompe el
+// document.xml y conserva el texto exacto tras decodificar.
+func TestFillEscapaXML(t *testing.T) {
+	p := plantilla(t, `<w:p><w:r><w:t>{{v}}</w:t></w:r></w:p>`)
+	var out bytes.Buffer
+	if _, err := Fill(p, map[string]any{"v": `a<b & "c" 'd'`}, false, &out); err != nil {
+		t.Fatal(err)
+	}
+	doc := docXML(t, out.Bytes())
+	validarXML(t, "word/document.xml", doc)
+	if got := textoDeDoc(t, doc); !strings.Contains(got, `a<b & "c" 'd'`) {
+		t.Errorf("texto perdido o mal escapado: %q\nxml=%s", got, doc)
+	}
+}
+
+// TestFillSaltoDeLinea comprueba que un valor con salto de línea genera XML
+// válido y no pierde texto.
+func TestFillSaltoDeLinea(t *testing.T) {
+	p := plantilla(t, `<w:p><w:r><w:t>{{v}}</w:t></w:r></w:p>`)
+	var out bytes.Buffer
+	if _, err := Fill(p, map[string]any{"v": "l1\nl2"}, false, &out); err != nil {
+		t.Fatal(err)
+	}
+	doc := docXML(t, out.Bytes())
+	validarXML(t, "word/document.xml", doc)
+	got := textoDeDoc(t, doc)
+	if !strings.Contains(got, "l1") || !strings.Contains(got, "l2") {
+		t.Errorf("texto perdido: %q", got)
 	}
 }

@@ -96,6 +96,10 @@ func clasificarErrorMerge(err error) error {
 // Fill abre la plantilla, aplica los datos y escribe el docx en w.
 // Con strict, un placeholder sin dato es error.
 // Devuelve avisos por marcadores sin dato (solo en modo no estricto).
+//
+// Los valores se insertan sin escapar en el modelo: docxgo serializa el texto
+// con encoding/xml (escapa <, &, comillas y convierte \n en <w:br/>), así que
+// pre-escapar aquí provocaría doble escape.
 func Fill(templatePath string, data map[string]any, strict bool, w io.Writer) ([]string, error) {
 	flat, err := Flatten(data)
 	if err != nil {
