@@ -7,11 +7,27 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 
 	"github.com/bioodev/mkdocx/internal/fill"
 )
 
 var version = "dev"
+
+// versionEfectiva devuelve la versión a mostrar. Los releases la inyectan con
+// -ldflags; si no, la toma del build info del binario instalado con go install,
+// descartando "(devel)" y valores vacíos.
+func versionEfectiva() string {
+	if version != "dev" {
+		return version
+	}
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		if v := bi.Main.Version; v != "" && v != "(devel)" {
+			return v
+		}
+	}
+	return version
+}
 
 const usage = `mkdocx - genera documentos .docx
 
@@ -36,7 +52,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var err error
 	switch args[0] {
 	case "--version", "-v", "version":
-		fmt.Fprintln(stdout, "mkdocx", version)
+		fmt.Fprintln(stdout, "mkdocx", versionEfectiva())
 		return 0
 	case "--help", "-h", "help":
 		fmt.Fprint(stdout, usage)

@@ -97,6 +97,24 @@ func TestVersion(t *testing.T) {
 	}
 }
 
+// TestVersionEfectiva cubre la resolución de versión: con -ldflags manda la
+// inyectada y, sin ella, debe caer en la del build info o en "dev", nunca en
+// "(devel)" ni vacío.
+func TestVersionEfectiva(t *testing.T) {
+	orig := version
+	defer func() { version = orig }()
+
+	version = "v1.2.3"
+	if got := versionEfectiva(); got != "v1.2.3" {
+		t.Errorf("con -ldflags: got %q, esperaba v1.2.3", got)
+	}
+
+	version = "dev"
+	if got := versionEfectiva(); got == "" || got == "(devel)" {
+		t.Errorf("sin -ldflags: got %q, esperaba una versión válida", got)
+	}
+}
+
 func TestFillEndToEnd(t *testing.T) {
 	tmp := t.TempDir()
 	md := escribir(t, "t.md", "Hola {{nombre}}")
